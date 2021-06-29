@@ -139,6 +139,7 @@ class Human36MMultiViewDataset(Dataset):
             image_path = os.path.join(
                 self.h36m_root, subject, action, 'imageSequence' + '-undistorted' * self.undistort_images,
                 camera_name, 'img_%06d.jpg' % (frame_idx+1))
+            print(image_path)
             assert os.path.isfile(image_path), '%s doesn\'t exist' % image_path
             image = cv2.imread(image_path)
 

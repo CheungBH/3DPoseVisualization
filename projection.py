@@ -66,7 +66,7 @@ while True:
 
     cv2.imshow('w', display)
     cv2.setWindowTitle('w', f"{subject_name}/{action_name}/{camera_name}/{frame_idx}")
-    cv2.waitKey(0)
+    cv2.waitKey(1)
 
     action = dataset.labels['table'][sample_idx]['action_idx']
     if action != prev_action:  # started a new action

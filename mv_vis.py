@@ -176,7 +176,7 @@ def show3Dpose(joints,
 
     I = np.array([0, 1, 2, 5, 4, 3, 6, 7, 8, 9, 8, 11, 10, 8, 13, 14]) # start points
     J = np.array([1, 2, 6, 4, 3, 6, 7, 8, 16, 16, 12, 12, 11, 13, 14, 15])  # end points
-    LR = np.array([1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1], dtype=bool)
+    LR = np.array([0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1], dtype=bool)
 
     # Make connection matrix
     for i in np.arange(len(I)):
@@ -370,7 +370,6 @@ while True:
     specific_3d_skeleton_project = specific_3d_skeleton_project @ np.eye(3, dtype=np.float32) * 1
     specific_3d_skeleton_project = projection_to_2d_plane(specific_3d_skeleton_project, projection_matrix, view_matrix,
                                                           int(frame_size / 2)).reshape(17, 2)
-
 
     for c in human36m_connectivity_dict:
         cv2.line(frame, (*specific_3d_skeleton_project[c[0]],), (*specific_3d_skeleton_project[c[1]],),
