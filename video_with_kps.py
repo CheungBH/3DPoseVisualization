@@ -244,8 +244,8 @@ label_action_name = ['Directions-1', 'Directions-2', 'Discussion-1', 'Discussion
 
 out = cv2.VideoWriter('output.mp4', cv2.VideoWriter_fourcc(*'XVID'), 20.0, (900, 900))
 img_root = "/media/hkuit155/Windows/1TB_dataset/multi_view/h36m/images"
-specific_subject = "S1"
-specific_action = "Eating-1"
+specific_subject = "S5"
+specific_action = "WalkingDog-1"
 mask_subject = labels['subject_idx'] == subject_name.index(specific_subject)
 actions = [action_name.index(specific_action)]
 # img_folder = os.path.join(img_root, "processed", specific_subject, specific_action, "imageSequence-undistorted")
@@ -320,6 +320,7 @@ while True:
     if frame_index == total_frame:
         frame_index = 0
     frame = np.zeros([frame_size, frame_size, 3])
+    frame_projection = np.zeros([frame_size, frame_size, 3])
     if view_camera_index >= 0:
         view_matrix = None
         projection_matrix = specific_camera_config[view_camera_index].projection
@@ -374,14 +375,6 @@ while True:
     img_path = os.path.join(img_root, img_string, img_string+"_"+str(frame_index+1).zfill(6)+".jpg")
     origin_img = cv2.imread(img_path)
     cv2.imshow("img_origin", origin_img)
-
-    # img_path = os.path.join(img_folder, cam_dict[view_camera_index], "img_" + str(frame_index+1).zfill(6) + ".jpg")
-    # try:
-    #     # origin_img = cv2.resize(cv2.imread(img_path), (720, 540))
-    #     origin_img = cv2.imread(img_path)
-    #     cv2.imshow("img_origin", origin_img)
-    # except:
-    #     pass
 
     specific_3d_skeleton_project = specific_3d_skeleton_project @ (
         np.eye(3) if view_matrix is None else rorate_x_90[:3, :3]).T
