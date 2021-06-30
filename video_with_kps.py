@@ -244,7 +244,7 @@ label_action_name = ['Directions-1', 'Directions-2', 'Discussion-1', 'Discussion
 
 out = cv2.VideoWriter('output.mp4', cv2.VideoWriter_fourcc(*'XVID'), 20.0, (900, 900))
 img_root = "/media/hkuit155/Windows/1TB_dataset/multi_view/h36m/images"
-specific_subject = "S5"
+specific_subject = "S1"
 specific_action = "WalkingDog-1"
 mask_subject = labels['subject_idx'] == subject_name.index(specific_subject)
 actions = [action_name.index(specific_action)]
@@ -297,7 +297,7 @@ o_projection_matrix = projection_matrix.copy()
 total_frame = specific_3d_skeleton.shape[0]
 frame_index = 0
 
-view_camera_index = 2
+view_camera_index = 1
 plt.figure()
 # cam_dict = {0: "54138969",
 #             -1: "55011271",
@@ -320,13 +320,9 @@ while True:
     if frame_index == total_frame:
         frame_index = 0
     frame = np.zeros([frame_size, frame_size, 3])
-    frame_projection = np.zeros([frame_size, frame_size, 3])
-    if view_camera_index >= 0:
-        view_matrix = None
-        projection_matrix = specific_camera_config[view_camera_index].projection
-    else:
-        view_matrix = o_view_matrix
-        projection_matrix = o_projection_matrix
+
+    view_matrix = o_view_matrix
+    projection_matrix = o_projection_matrix
 
     grid_vertices_project = grid_vertices @ (np.eye(3) if view_matrix is None else rorate_x_90[:3, :3].T)
     grid_vertices_project = grid_vertices_project @ transformations.scale_matrix(650)[:3, :3].T
@@ -363,6 +359,7 @@ while True:
                     cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255))
 
     specific_3d_skeleton_project = specific_3d_skeleton[frame_index].reshape(-1, 3)
+    specific_3d_skeleton_project_2d = specific_3d_skeleton[frame_index].reshape(-1, 3)
 
     ax = plt.subplot(1, 1, 1, projection='3d')
     show3Dpose(specific_3d_skeleton_project, ax, plot_dot=True, add_labels=False)
@@ -374,7 +371,6 @@ while True:
 
     img_path = os.path.join(img_root, img_string, img_string+"_"+str(frame_index+1).zfill(6)+".jpg")
     origin_img = cv2.imread(img_path)
-    cv2.imshow("img_origin", origin_img)
 
     specific_3d_skeleton_project = specific_3d_skeleton_project @ (
         np.eye(3) if view_matrix is None else rorate_x_90[:3, :3]).T
@@ -388,9 +384,26 @@ while True:
         cv2.circle(frame, (*specific_3d_skeleton_project[c[0]],), 3, (0, 0, 255), -1)
         cv2.circle(frame, (*specific_3d_skeleton_project[c[1]],), 3, (0, 0, 255), -1)
 
+    view_matrix_2d = None
+    projection_matrix_2d = specific_camera_config[view_camera_index].projection
+    specific_3d_skeleton_project_2d = specific_3d_skeleton_project_2d @ (
+        np.eye(3) if view_matrix_2d is None else rorate_x_90[:3, :3]).T
+    specific_3d_skeleton_project_2d = specific_3d_skeleton_project_2d @ np.eye(3, dtype=np.float32) * 1
+    specific_3d_skeleton_project_2d = projection_to_2d_plane(specific_3d_skeleton_project_2d, projection_matrix_2d,
+                                                             view_matrix_2d, int(frame_size / 2)).reshape(17, 2)
+
+    for c in human36m_connectivity_dict:
+        cv2.line(origin_img, (*specific_3d_skeleton_project_2d[c[0]],), (*specific_3d_skeleton_project_2d[c[1]],),
+                 (100, 155, 255), thickness=2)
+        cv2.circle(origin_img, (*specific_3d_skeleton_project_2d[c[0]],), 3, (0, 0, 255), -1)
+        cv2.circle(origin_img, (*specific_3d_skeleton_project_2d[c[1]],), 3, (0, 0, 255), -1)
+
     frame_index += 1
     # print(frame_index)
     cv2.imshow(specific_action, frame)
+    # cv2.imshow("projection", frame_projection)
+    cv2.imshow("img_origin", origin_img)
+
     out.write(np.uint8(frame))
     frame = cv2.resize(frame, (720, 540))
 
