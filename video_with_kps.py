@@ -245,7 +245,7 @@ label_action_name = ['Directions-1', 'Directions-2', 'Discussion-1', 'Discussion
 out = cv2.VideoWriter('output.mp4', cv2.VideoWriter_fourcc(*'XVID'), 20.0, (900, 900))
 img_root = "/media/hkuit155/Windows/1TB_dataset/multi_view/h36m/images"
 specific_subject = "S1"
-specific_action = "Directions-1"
+specific_action = "Eating-1"
 mask_subject = labels['subject_idx'] == subject_name.index(specific_subject)
 actions = [action_name.index(specific_action)]
 # img_folder = os.path.join(img_root, "processed", specific_subject, specific_action, "imageSequence-undistorted")
@@ -297,7 +297,7 @@ o_projection_matrix = projection_matrix.copy()
 total_frame = specific_3d_skeleton.shape[0]
 frame_index = 0
 
-view_camera_index = 3
+view_camera_index = 2
 plt.figure()
 # cam_dict = {0: "54138969",
 #             -1: "55011271",
@@ -307,7 +307,8 @@ plt.figure()
 
 actor_map = {"S{}".format(idx): "s_0{}".format(idx) for idx in [1,5,6,7,8,9]}
 actor_map["S11"] = "s_11"
-camera_idx = "ca_0{}".format(view_camera_index)
+# camera_map = {0: "ca_01", 1: "ca_01", 2: "ca_01", 3: "ca_04"}
+camera_idx = "ca_0{}".format(view_camera_index+1)
 action_map = {action: "act_{}".format(str(int(i/2)+2).zfill(2)) for i, action in enumerate(label_action_name)}
 subaction = "subact_01" if "1" in specific_action else "subact_02"
 

@@ -241,7 +241,7 @@ camera_name = [str(i) for i, c in enumerate(camera_name)]
 
 out = cv2.VideoWriter('output.mp4', cv2.VideoWriter_fourcc(*'XVID'), 20.0, (900, 900))
 img_root = "/media/hkuit155/Windows/1TB_dataset/learnable_triangle_dataset"
-specific_subject = "S1"
+specific_subject = "S11"
 specific_action = "Directions-2"
 mask_subject = labels['subject_idx'] == subject_name.index(specific_subject)
 actions = [action_name.index(specific_action)]
