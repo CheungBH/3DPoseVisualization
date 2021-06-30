@@ -218,6 +218,8 @@ def show3Dpose(joints,
     ax.view_init(10, -60)
 
 import os
+from utils.draw import plot_xyz_curve
+
 
 camera_vertices = np.array([[0, 0, 0], [-1, -1, 2],
                             [0, 0, 0], [1, 1, 2],
@@ -313,7 +315,10 @@ action_map = {action: "act_{}".format(str(int(i/2)+2).zfill(2)) for i, action in
 subaction = "subact_01" if "1" in specific_action else "subact_02"
 
 img_string = "{}_{}_{}_{}".format(actor_map[specific_subject], action_map[specific_action], subaction, camera_idx)
-# img_folder = os.path.join(img_root, )
+
+previous_3d_kps = []
+movements = np.zeros((1,3))
+
 
 while True:
 
@@ -360,6 +365,14 @@ while True:
 
     specific_3d_skeleton_project = specific_3d_skeleton[frame_index].reshape(-1, 3)
     specific_3d_skeleton_project_2d = specific_3d_skeleton[frame_index].reshape(-1, 3)
+    if len(previous_3d_kps) > 0:
+        diff_3d_kps = specific_3d_skeleton_project - previous_3d_kps
+        curr_movement = np.mean(np.abs(diff_3d_kps), axis=0)
+        movements = np.concatenate((movements, np.expand_dims(curr_movement, axis=0)), axis=0)
+    previous_3d_kps = specific_3d_skeleton_project
+    plot_data = movements.T
+    movement_img = plot_xyz_curve(plot_data[0], plot_data[1], plot_data[2], frame_index, title="average joints movement")
+    cv2.imshow("movement", movement_img)
 
     ax = plt.subplot(1, 1, 1, projection='3d')
     show3Dpose(specific_3d_skeleton_project, ax, plot_dot=True, add_labels=False)
@@ -379,10 +392,10 @@ while True:
                                                           int(frame_size / 2)).reshape(17, 2)
 
     for c in human36m_connectivity_dict:
-        cv2.line(frame, (*specific_3d_skeleton_project[c[0]],), (*specific_3d_skeleton_project[c[1]],),
+        cv2.line(frame, (*specific_3d_skeleton_project[c[0]] ,), (*specific_3d_skeleton_project[c[1]],),
                  (100, 155, 255), thickness=2)
-        cv2.circle(frame, (*specific_3d_skeleton_project[c[0]],), 3, (0, 0, 255), -1)
-        cv2.circle(frame, (*specific_3d_skeleton_project[c[1]],), 3, (0, 0, 255), -1)
+        cv2.circle(frame, (*specific_3d_skeleton_project[c[0]] ,), 3, (0, 0, 255), -1)
+        cv2.circle(frame, (*specific_3d_skeleton_project[c[1]] ,), 3, (0, 0, 255), -1)
 
     view_matrix_2d = None
     projection_matrix_2d = specific_camera_config[view_camera_index].projection
@@ -393,10 +406,10 @@ while True:
                                                              view_matrix_2d, int(frame_size / 2)).reshape(17, 2)
 
     for c in human36m_connectivity_dict:
-        cv2.line(origin_img, (*specific_3d_skeleton_project_2d[c[0]],), (*specific_3d_skeleton_project_2d[c[1]],),
+        cv2.line(origin_img, (*specific_3d_skeleton_project_2d[c[0]]+45,), (*specific_3d_skeleton_project_2d[c[1]]+45,),
                  (100, 155, 255), thickness=2)
-        cv2.circle(origin_img, (*specific_3d_skeleton_project_2d[c[0]],), 3, (0, 0, 255), -1)
-        cv2.circle(origin_img, (*specific_3d_skeleton_project_2d[c[1]],), 3, (0, 0, 255), -1)
+        cv2.circle(origin_img, (*specific_3d_skeleton_project_2d[c[0]]+45,), 3, (0, 0, 255), -1)
+        cv2.circle(origin_img, (*specific_3d_skeleton_project_2d[c[1]]+45,), 3, (0, 0, 255), -1)
 
     frame_index += 1
     # print(frame_index)
@@ -413,10 +426,6 @@ while True:
     # cv2.imshow("result", out_img)
     # cv2.waitKey(1)
 
-    # if cv2.waitKey(6) & 0xFF == ord('1'):
-    #     view_camera_index += 1
-    #     if view_camera_index == 4:
-    #         view_camera_index = -1
     cv2.waitKey(1)
 
 cv2.destroyAllWindows()
