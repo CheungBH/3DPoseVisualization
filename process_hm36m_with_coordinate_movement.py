@@ -1,10 +1,12 @@
 #-*-coding:utf-8-*-
 #-*-coding:utf-8-*-
+#-*-coding:utf-8-*-
 import cv2
 import numpy as np
 import mv_utils.transformations as transformations
 import matplotlib.pyplot as plt
 import torch
+import copy
 
 
 def project_3d_points_to_image_plane_without_distortion(proj_matrix, points_3d, convert_back_to_euclidean=True):
@@ -218,7 +220,7 @@ def show3Dpose(joints,
     ax.view_init(10, -60)
 
 import os
-from utils.draw import plot_xyz_curves
+from utils.draw import plot_xyz_curve
 
 
 camera_vertices = np.array([[0, 0, 0], [-1, -1, 2],
@@ -241,13 +243,26 @@ camera_name = [str(i) for i, c in enumerate(camera_name)]
 
 # subject_name ['S1', 'S5', 'S6', 'S7', 'S8', 'S9', 'S11']
 
+rdm_param = [[0.2897593677043915, 0.5028762817382812],
+             [0.3491068184375763, 0.5675948262214661],
+             [0.407254159450531, 0.7354636788368225]]
+
+
+def get_rdm_movement(rdm_param):
+    x_rand = rdm_param[0][1] *15* np.random.randn(17, 1) + rdm_param[0][0]
+    y_rand = rdm_param[1][1] *15* np.random.randn(17, 1) + rdm_param[1][0]
+    z_rand = rdm_param[2][1] *15* np.random.randn(17, 1) + rdm_param[2][0]
+    return np.concatenate((x_rand, y_rand, z_rand), axis=1)
+
+
+
 # video_action_name = ['Directions 1', 'Directions', 'Discussion 1', 'Discussion 2', 'Eating', 'Eating 1', 'Greeting 1', 'Greeting 2', 'Phoning', 'Phoning 1', 'Posing', 'Posing 1', 'Purchases', 'Purchases 1', 'Sitting 1', 'Sitting', 'SittingDown', 'SittingDown 1', 'Smoking', 'Smoking 1', 'Photo', 'Photo 2', 'Waiting 1', 'Waiting 2', 'Walking', 'Walking 1', 'WalkDog', 'WalkDog 1', 'WalkingTogether', 'WalkingTogether 1']
 label_action_name = ['Directions-1', 'Directions-2', 'Discussion-1', 'Discussion-2', 'Eating-1', 'Eating-2', 'Greeting-1', 'Greeting-2', 'Phoning-1', 'Phoning-2', 'Posing-1', 'Posing-2', 'Purchases-1', 'Purchases-2', 'Sitting-1', 'Sitting-2', 'SittingDown-1', 'SittingDown-2', 'Smoking-1', 'Smoking-2', 'TakingPhoto-1', 'TakingPhoto-2', 'Waiting-1', 'Waiting-2', 'Walking-1', 'Walking-2', 'WalkingDog-1', 'WalkingDog-2', 'WalkingTogether-1', 'WalkingTogether-2']
 
-out = cv2.VideoWriter('output.mp4', cv2.VideoWriter_fourcc(*'XVID'), 20.0, (2560, 960))
+out = cv2.VideoWriter('random_coordinate_movement.mp4', cv2.VideoWriter_fourcc(*'XVID'), 20.0, (1920, 640))
 img_root = "/media/hkuit155/Windows/1TB_dataset/multi_view/h36m/images"
 specific_subject = "S1"
-specific_action = "WalkingDog-1"
+specific_action = "Directions-1"
 mask_subject = labels['subject_idx'] == subject_name.index(specific_subject)
 actions = [action_name.index(specific_action)]
 # img_folder = os.path.join(img_root, "processed", specific_subject, specific_action, "imageSequence-undistorted")
@@ -258,6 +273,7 @@ indices = []
 indices.append(np.nonzero(mask_subject)[0])
 specific_label = labels[np.concatenate(indices)]
 specific_3d_skeleton = specific_label['keypoints']
+random_kps = specific_3d_skeleton[0].reshape(-1, 3)
 
 specific_camera_config = camera_configs[subject_name.index(specific_subject)]
 specific_camera_config = [
@@ -299,13 +315,8 @@ o_projection_matrix = projection_matrix.copy()
 total_frame = specific_3d_skeleton.shape[0]
 frame_index = 0
 
-view_camera_index = 3
-
-# cam_dict = {0: "54138969",
-#             -1: "55011271",
-#             2: "58860488",
-#             1: "55011271",
-#             3: "60457274"}
+view_camera_index = 0
+plt.figure()
 
 actor_map = {"S{}".format(idx): "s_0{}".format(idx) for idx in [1,5,6,7,8,9]}
 actor_map["S11"] = "s_11"
@@ -318,15 +329,13 @@ img_string = "{}_{}_{}_{}".format(actor_map[specific_subject], action_map[specif
 
 previous_3d_kps = []
 movements = np.zeros((1,3))
-hip_movement = np.zeros((1,3))
+
 
 while True:
 
     if frame_index == total_frame:
-        break
         frame_index = 0
     frame = np.zeros([frame_size, frame_size, 3])
-    # frame_2d_kps = np.zeros([frame_size, frame_size, 3])
 
     view_matrix = o_view_matrix
     projection_matrix = o_projection_matrix
@@ -365,81 +374,64 @@ while True:
                     (camera_vertices_convert[1, 0], camera_vertices_convert[1, 1] - 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255))
 
-    specific_3d_skeleton_project = specific_3d_skeleton[frame_index].reshape(-1, 3)
-    specific_3d_skeleton_project_2d = specific_3d_skeleton[frame_index].reshape(-1, 3)
-    if len(previous_3d_kps) > 0:
-        diff_3d_kps = specific_3d_skeleton_project - previous_3d_kps
-        hip_movement = np.concatenate((hip_movement, np.expand_dims(np.abs(diff_3d_kps[6]), axis=0)), axis=0)
-        curr_movement = np.mean(np.abs(diff_3d_kps), axis=0)
-        movements = np.concatenate((movements, np.expand_dims(curr_movement, axis=0)), axis=0)
-    previous_3d_kps = specific_3d_skeleton_project
-    plot_data = movements.T
-    plot_hip_data = hip_movement.T
-    # movement_whole_img = plot_xyz_curve(plot_data[0], plot_data[1], plot_data[2], frame_index, title="average joints movement")
-    # movement_hip_img = plot_xyz_curve(plot_hip_data[0], plot_hip_data[1], plot_hip_data[2], frame_index, title="hip movement")
-    # cv2.imshow("movement_whole", movement_whole_img)
-    # cv2.imshow("movement hip", movement_hip_img)
-    movement_img = plot_xyz_curves(plot_data, plot_hip_data, frame_index)
-    cv2.imshow("movement", movement_img)
+    random_kps = random_kps + get_rdm_movement(rdm_param)
+    random_3d_kps_2d = copy.deepcopy(random_kps)
+    random_3d_kps = copy.deepcopy(random_kps)
+    # if len(previous_3d_kps) > 0:
+    #     diff_3d_kps = specific_3d_skeleton_project - previous_3d_kps
+    #     curr_movement = np.mean(np.abs(diff_3d_kps), axis=0)
+    #     movements = np.concatenate((movements, np.expand_dims(curr_movement, axis=0)), axis=0)
+    # previous_3d_kps = specific_3d_skeleton_project
+    # plot_data = movements.T
+    # movement_img = plot_xyz_curve(plot_data[0], plot_data[1], plot_data[2], frame_index, title="average joints movement")
+    # cv2.imshow("movement", movement_img)
 
-    plt.figure()
     ax = plt.subplot(1, 1, 1, projection='3d')
-    show3Dpose(specific_3d_skeleton_project, ax, plot_dot=True, add_labels=False)
+    show3Dpose(random_3d_kps, ax, plot_dot=True, add_labels=False)
     plt.tight_layout()
     plt.savefig("tmp.JPG")
-    plt.close()
-    img3d = cv2.imread("tmp.JPG")
+    plt.clf()
+    img3d = cv2.resize(cv2.imread("tmp.JPG"), (720, 540))
     cv2.imshow("3d", img3d)
 
     img_path = os.path.join(img_root, img_string, img_string+"_"+str(frame_index+1).zfill(6)+".jpg")
-    origin_img = cv2.imread(img_path)
-    frame_2d_kps = np.zeros([origin_img.shape[0], origin_img.shape[1], 3])
+    img_2d = np.zeros([1000, 1000, 3])
 
-    specific_3d_skeleton_project = specific_3d_skeleton_project @ (
+    random_3d_kps = random_3d_kps @ (
         np.eye(3) if view_matrix is None else rorate_x_90[:3, :3]).T
-    specific_3d_skeleton_project = specific_3d_skeleton_project @ np.eye(3, dtype=np.float32) * 1
-    specific_3d_skeleton_project = projection_to_2d_plane(specific_3d_skeleton_project, projection_matrix, view_matrix,
-                                                          int(frame_size / 2)).reshape(17, 2)
+    random_3d_kps = random_3d_kps @ np.eye(3, dtype=np.float32) * 1
+    random_3d_kps = projection_to_2d_plane(random_3d_kps, projection_matrix, view_matrix,
+                                           int(frame_size / 2)).reshape(17, 2)
 
     for c in human36m_connectivity_dict:
-        cv2.line(frame, (*specific_3d_skeleton_project[c[0]] ,), (*specific_3d_skeleton_project[c[1]],),
+        cv2.line(frame, (*random_3d_kps[c[0]] ,), (*random_3d_kps[c[1]],),
                  (100, 155, 255), thickness=2)
-        cv2.circle(frame, (*specific_3d_skeleton_project[c[0]] ,), 3, (0, 0, 255), -1)
-        cv2.circle(frame, (*specific_3d_skeleton_project[c[1]] ,), 3, (0, 0, 255), -1)
+        cv2.circle(frame, (*random_3d_kps[c[0]] ,), 3, (0, 0, 255), -1)
+        cv2.circle(frame, (*random_3d_kps[c[1]] ,), 3, (0, 0, 255), -1)
 
     view_matrix_2d = None
     projection_matrix_2d = specific_camera_config[view_camera_index].projection
-    specific_3d_skeleton_project_2d = specific_3d_skeleton_project_2d @ (
+    random_3d_kps_2d = random_3d_kps_2d @ (
         np.eye(3) if view_matrix_2d is None else rorate_x_90[:3, :3]).T
-    specific_3d_skeleton_project_2d = specific_3d_skeleton_project_2d @ np.eye(3, dtype=np.float32) * 1
-    specific_3d_skeleton_project_2d = projection_to_2d_plane(specific_3d_skeleton_project_2d, projection_matrix_2d,
-                                                             view_matrix_2d, int(frame_size / 2)).reshape(17, 2)
+    random_3d_kps_2d = random_3d_kps_2d @ np.eye(3, dtype=np.float32) * 1
+    random_3d_kps_2d = projection_to_2d_plane(random_3d_kps_2d, projection_matrix_2d,
+                                              view_matrix_2d, int(frame_size / 2)).reshape(17, 2)
 
     for c in human36m_connectivity_dict:
-        cv2.line(frame_2d_kps, (*specific_3d_skeleton_project_2d[c[0]],), (*specific_3d_skeleton_project_2d[c[1]],),
-                 (100, 155, 255), thickness=4)
-        cv2.circle(frame_2d_kps, (*specific_3d_skeleton_project_2d[c[0]],), 3, (0, 0, 255), -1)
-        cv2.circle(frame_2d_kps, (*specific_3d_skeleton_project_2d[c[1]],), 3, (0, 0, 255), -1)
-
-    origin_img[:300,-300:,:] = cv2.resize(frame_2d_kps, (300, 300))
+        cv2.line(img_2d, (*random_3d_kps_2d[c[0]] + 45,), (*random_3d_kps_2d[c[1]] + 45,),
+                 (100, 155, 255), thickness=2)
+        cv2.circle(img_2d, (*random_3d_kps_2d[c[0]] + 45,), 3, (0, 0, 255), -1)
+        cv2.circle(img_2d, (*random_3d_kps_2d[c[1]] + 45,), 3, (0, 0, 255), -1)
 
     frame_index += 1
     # print(frame_index)
     cv2.imshow(specific_action, frame)
     # cv2.imshow("projection", frame_projection)
-    cv2.imshow("img_origin", origin_img)
+    final_img = np.uint8(np.concatenate((cv2.resize(img_2d, (640, 640)), cv2.resize(img3d, (640, 640)),
+                                         cv2.resize(frame, (640, 640))), axis=1))
+    cv2.imshow("result", final_img)
+    out.write(np.uint8(final_img))
 
-    # out.write(np.uint8(frame))
-    # frame = cv2.resize(frame, (720, 540))
-
-    # final_img = cv2.vconcat(cv2.hconcat(cv2.resize(origin_img, (480, 480)), img3d),
-    #                         cv2.hconcat(movement_img, cv2.resize(frame, (480, 480))))
-    # final_img = np.concatenate((np.concatenate((cv2.resize(origin_img, (480, 480)), img3d), axis=1),
-    #                             np.concatenate((movement_img, cv2.resize(frame, (480, 480))), axis=1)), axis=0)
-    final_img = np.uint8(np.concatenate((cv2.resize(origin_img, (960, 960)), np.concatenate((movement_img, img3d), axis=0),
-                                         cv2.resize(frame, (960, 960))), axis=1))
-    cv2.imshow("result", cv2.resize(final_img, (1960, 720)))
-    out.write(final_img)
     # cv2.imshow("img_origin", origin_img)
     # out_img = cv2.hconcat([origin_img,img3d,frame])
     # out_img = np.concatenate((origin_img, cv2.resize(cv2.imread("tmp.JPG"), (720, 540)), frame), axis=0)
@@ -448,4 +440,4 @@ while True:
 
     cv2.waitKey(1)
 
-cv2.destroyAllWindows()
+# cv2.destroyAllWindows()

@@ -32,6 +32,7 @@ def draw_gaussian(dist, num_column=20, name=""):
     sigma = np.std(dist)
     print("{}: mean {}, sigma {}".format(name, mean, sigma))
     plt.hist(dist, bins=num_column)
+    plt.title("{} movement distribution".format(name))
     plt.savefig("mean.jpg")
     return cv2.imread("mean.jpg"), mean, sigma
 
@@ -51,4 +52,5 @@ if __name__ == '__main__':
     z_img, z_mean, z_sigma = draw_gaussian(diff_np[2], name="z")
     img = cv2.hconcat((x_img, y_img, z_img))
     cv2.imshow("img", img)
+    cv2.imwrite("distribution.jpg", img)
     cv2.waitKey(0)
